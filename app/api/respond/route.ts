@@ -2,13 +2,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { SCUFFERS_SUPPORT_PROMPT } from "@/lib/system-prompt";
 import { extractOrderId, findOrder } from "@/lib/mock-orders";
+import { findMockResponse } from "@/lib/mock-responses";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,6 +20,29 @@ export async function POST(req: NextRequest) {
 
     const orderId = extractOrderId(email);
     const order = orderId ? findOrder(orderId) : undefined;
+
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const useMock = !apiKey || apiKey === "sk-ant-..." || apiKey.length < 20;
+
+    if (useMock) {
+      const start = Date.now();
+      const mock = findMockResponse(email);
+      await new Promise((r) => setTimeout(r, 600));
+      return NextResponse.json({
+        ...mock,
+        order_found: order ?? null,
+        _meta: {
+          model: "mock-mode",
+          cache_tokens: 0,
+          input_tokens: 0,
+          output_tokens: 0,
+          mode: "demo",
+          latency_ms: Date.now() - start,
+        },
+      });
+    }
+
+    const anthropic = new Anthropic({ apiKey });
 
     const userMessage = order
       ? `EMAIL DEL CLIENTE:\n${email}\n\n---\nDATOS DE LA ORDEN ENCONTRADA EN SHOPIFY:\n${JSON.stringify(order, null, 2)}`
@@ -73,6 +93,7 @@ export async function POST(req: NextRequest) {
         cache_tokens: response.usage.cache_read_input_tokens ?? 0,
         input_tokens: response.usage.input_tokens,
         output_tokens: response.usage.output_tokens,
+        mode: "live",
       },
     });
   } catch (error) {

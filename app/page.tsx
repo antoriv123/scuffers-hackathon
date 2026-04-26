@@ -20,6 +20,7 @@ type ApiResponse = {
     cache_tokens: number;
     input_tokens: number;
     output_tokens: number;
+    mode?: "demo" | "live";
   };
 };
 
@@ -119,7 +120,21 @@ export default function Home() {
 
       {output && (
         <section className="space-y-4 border-t border-neutral-200 pt-6">
+          {output._meta?.mode === "demo" && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-md p-3 text-sm">
+              <strong>Modo DEMO activo</strong> — respuesta pregenerada (sin
+              llamada a Anthropic). Pega tu <code>ANTHROPIC_API_KEY</code> en{" "}
+              <code>.env.local</code> y reinicia el server para activar Claude
+              Sonnet 4.6 en vivo.
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 text-xs">
+            {output._meta?.mode === "live" && (
+              <Badge label="🟢 LIVE Claude 4.6" variant="ok" />
+            )}
+            {output._meta?.mode === "demo" && (
+              <Badge label="🟡 MOCK demo mode" />
+            )}
             <Badge label={`Categoría: ${output.category}`} />
             <Badge label={`Idioma: ${output.language_detected}`} />
             <Badge
@@ -129,7 +144,7 @@ export default function Home() {
               variant={output.escalate_human ? "alert" : "ok"}
             />
             {latencyMs && <Badge label={`${latencyMs}ms`} />}
-            {output._meta && (
+            {output._meta && output._meta.mode === "live" && (
               <Badge
                 label={`Cache: ${output._meta.cache_tokens} tokens reused`}
               />
