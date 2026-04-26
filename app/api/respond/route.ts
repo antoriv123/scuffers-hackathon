@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { SCUFFERS_SUPPORT_PROMPT } from "@/lib/system-prompt";
 import { extractOrderId, findOrder } from "@/lib/mock-orders";
 import { findMockResponse } from "@/lib/mock-responses";
+import { buildAugmentedPrompt, selectKnowledge } from "@/lib/knowledge-base";
+import {
+  classifyByKeywords,
+  retrieveSimilarReviews,
+  buildReviewsContext,
+} from "@/lib/reviews-retrieval";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -21,8 +27,24 @@ export async function POST(req: NextRequest) {
     const orderId = extractOrderId(email);
     const order = orderId ? findOrder(orderId) : undefined;
 
+    const preCategory = classifyByKeywords(email);
+    const kbChunks = selectKnowledge(preCategory);
+    const similarReviews = retrieveSimilarReviews(email, preCategory, 3);
+
     const apiKey = process.env.ANTHROPIC_API_KEY;
     const useMock = !apiKey || apiKey === "sk-ant-..." || apiKey.length < 20;
+
+    const ragMeta = {
+      pre_classification: preCategory,
+      kb_chunks_loaded: kbChunks.map((c) => ({ id: c.id, title: c.title })),
+      similar_reviews: similarReviews.map((r) => ({
+        date: r.date,
+        rating: r.rating,
+        language: r.language,
+        pattern: r.pattern,
+        excerpt: r.text.slice(0, 140),
+      })),
+    };
 
     if (useMock) {
       const start = Date.now();
@@ -31,6 +53,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ...mock,
         order_found: order ?? null,
+        rag: ragMeta,
         _meta: {
           model: "mock-mode",
           cache_tokens: 0,
@@ -44,9 +67,15 @@ export async function POST(req: NextRequest) {
 
     const anthropic = new Anthropic({ apiKey });
 
+    const augmentedSystemPrompt = buildAugmentedPrompt(
+      SCUFFERS_SUPPORT_PROMPT,
+      preCategory,
+    );
+    const reviewsContext = buildReviewsContext(similarReviews);
+
     const userMessage = order
-      ? `EMAIL DEL CLIENTE:\n${email}\n\n---\nDATOS DE LA ORDEN ENCONTRADA EN SHOPIFY:\n${JSON.stringify(order, null, 2)}`
-      : `EMAIL DEL CLIENTE:\n${email}\n\n---\nNo se ha podido extraer un order id del email.`;
+      ? `${reviewsContext}\n\n# EMAIL DEL CLIENTE\n${email}\n\n# DATOS DE LA ORDEN ENCONTRADA EN SHOPIFY\n${JSON.stringify(order, null, 2)}`
+      : `${reviewsContext}\n\n# EMAIL DEL CLIENTE\n${email}\n\nNo se ha podido extraer un order id del email.`;
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
@@ -54,7 +83,7 @@ export async function POST(req: NextRequest) {
       system: [
         {
           type: "text",
-          text: SCUFFERS_SUPPORT_PROMPT,
+          text: augmentedSystemPrompt,
           cache_control: { type: "ephemeral" },
         },
       ],
@@ -75,7 +104,7 @@ export async function POST(req: NextRequest) {
       parsed = JSON.parse(cleaned);
     } catch {
       parsed = {
-        category: "general",
+        category: preCategory,
         language_detected: "es",
         escalate_human: false,
         escalate_reason: null,
@@ -88,9 +117,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ...parsed,
       order_found: order ?? null,
+      rag: ragMeta,
       _meta: {
         model: "claude-sonnet-4-6",
         cache_tokens: response.usage.cache_read_input_tokens ?? 0,
+        cache_creation_tokens: response.usage.cache_creation_input_tokens ?? 0,
         input_tokens: response.usage.input_tokens,
         output_tokens: response.usage.output_tokens,
         mode: "live",

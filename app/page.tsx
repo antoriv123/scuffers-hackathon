@@ -15,9 +15,21 @@ type ApiResponse = {
     free_shipping_next: boolean;
   } | null;
   order_found: Record<string, unknown> | null;
+  rag?: {
+    pre_classification: string;
+    kb_chunks_loaded: { id: string; title: string }[];
+    similar_reviews: {
+      date: string;
+      rating: number;
+      language: string;
+      pattern: string;
+      excerpt: string;
+    }[];
+  };
   _meta?: {
     model: string;
     cache_tokens: number;
+    cache_creation_tokens?: number;
     input_tokens: number;
     output_tokens: number;
     mode?: "demo" | "live";
@@ -160,11 +172,71 @@ export default function Home() {
           {output.order_found && (
             <details className="bg-neutral-50 border border-neutral-200 rounded-md p-3 text-sm">
               <summary className="cursor-pointer font-medium">
-                Orden encontrada en Shopify
+                📦 Orden encontrada en Shopify
               </summary>
               <pre className="mt-2 text-xs overflow-x-auto">
                 {JSON.stringify(output.order_found, null, 2)}
               </pre>
+            </details>
+          )}
+
+          {output.rag && (
+            <details
+              open
+              className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm"
+            >
+              <summary className="cursor-pointer font-medium">
+                🔍 RAG retrieval — {output.rag.kb_chunks_loaded.length} KB chunks +{" "}
+                {output.rag.similar_reviews.length} reviews históricas
+              </summary>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-blue-700 mb-1">
+                    Pre-classification (keywords)
+                  </div>
+                  <code className="text-xs bg-blue-100 px-2 py-1 rounded">
+                    {output.rag.pre_classification}
+                  </code>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-blue-700 mb-1">
+                    Knowledge base inyectado
+                  </div>
+                  <ul className="text-xs space-y-1">
+                    {output.rag.kb_chunks_loaded.map((c) => (
+                      <li key={c.id} className="font-mono">
+                        · <strong>{c.id}</strong> · {c.title}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {output.rag.similar_reviews.length > 0 && (
+                  <div>
+                    <div className="text-xs uppercase tracking-widest text-blue-700 mb-1">
+                      Top {output.rag.similar_reviews.length} reviews
+                      similares de las 1640
+                    </div>
+                    <ul className="text-xs space-y-2">
+                      {output.rag.similar_reviews.map((r, i) => (
+                        <li
+                          key={i}
+                          className="border-l-2 border-blue-300 pl-2"
+                        >
+                          <div className="font-mono text-blue-700">
+                            {r.date} · {r.rating}★ · {r.language.toUpperCase()}
+                          </div>
+                          <div className="italic text-neutral-700">
+                            &quot;{r.excerpt}...&quot;
+                          </div>
+                          <div className="text-blue-800 font-medium mt-0.5">
+                            🎯 {r.pattern}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </details>
           )}
 
