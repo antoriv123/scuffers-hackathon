@@ -32,7 +32,10 @@ type ApiResponse = {
     cache_creation_tokens?: number;
     input_tokens: number;
     output_tokens: number;
-    mode?: "demo" | "live";
+    cost_usd?: number;
+    cli_duration_ms?: number;
+    total_latency_ms?: number;
+    mode?: "demo" | "live" | "cli";
   };
 };
 
@@ -135,14 +138,24 @@ export default function Home() {
           {output._meta?.mode === "demo" && (
             <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-md p-3 text-sm">
               <strong>Modo DEMO activo</strong> — respuesta pregenerada (sin
-              llamada a Anthropic). Pega tu <code>ANTHROPIC_API_KEY</code> en{" "}
-              <code>.env.local</code> y reinicia el server para activar Claude
-              Sonnet 4.6 en vivo.
+              llamada a Claude). Para activar Claude live, instala el CLI o pega tu API key.
+            </div>
+          )}
+          {output._meta?.mode === "cli" && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-md p-3 text-sm">
+              <strong>🟢 LIVE vía Claude CLI</strong> — respuesta generada en directo
+              por Claude (autenticación local, sin API key). Modelo:{" "}
+              <code>{output._meta.model}</code>
+              {output._meta.cost_usd !== undefined &&
+                ` · Coste: $${output._meta.cost_usd.toFixed(4)}`}
             </div>
           )}
           <div className="flex flex-wrap gap-2 text-xs">
             {output._meta?.mode === "live" && (
-              <Badge label="🟢 LIVE Claude 4.6" variant="ok" />
+              <Badge label="🟢 LIVE Claude 4.6 (API)" variant="ok" />
+            )}
+            {output._meta?.mode === "cli" && (
+              <Badge label="🟢 LIVE Claude CLI" variant="ok" />
             )}
             {output._meta?.mode === "demo" && (
               <Badge label="🟡 MOCK demo mode" />
