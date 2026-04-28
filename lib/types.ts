@@ -158,6 +158,18 @@ export type PrioritizedAction = {
   confidence: number; // 0-1
   owner: ActionOwner;
   automation_possible: boolean;
+  score_dimensions?: {
+    urgencia: number; // 0-100, qué pronto va a estallar
+    impacto: number; // 0-100, magnitud del daño €/clientes/reputación
+    evidencia: number; // 0-100, # de señales convergentes
+    tier: "P0" | "P1" | "P2" | "P3"; // P0=inmediata, P1=esta hora, P2=este turno, P3=monitoreo
+    total: number; // 0-100, score agregado
+    explanation: {
+      urgencia: string; // 1 frase explicando
+      impacto: string;
+      evidencia: string;
+    };
+  };
   // Internal — para debug/explainability
   _scores?: {
     base_score: number;

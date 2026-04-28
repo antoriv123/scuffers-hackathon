@@ -1,0 +1,1249 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>scuffers® AI Ops Control Tower — Pitch</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f6f5f1;
+    --bg-black: #0a0a0a;
+    --bg-black-2: #141414;
+    --fg: #111111;
+    --fg-on-black: #f4f3ee;
+    --muted: #6b6b6b;
+    --muted-on-black: #a3a39e;
+    --line: #e6e5e1;
+    --line-on-black: #2a2a2a;
+    --accent: #2B7551;
+    --accent-2: #1f5a3d;
+    --accent-soft: #e7f1ec;
+    --danger: #c1121f;
+    --warn: #e07b00;
+    --p0: #c1121f;
+    --p1: #e07b00;
+    --p2: #b69200;
+    --p3: #2c5fb3;
+    --ease: cubic-bezier(.2,.7,.2,1);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  ::selection { background: var(--accent); color: #fff; }
+
+  /* ===== Layout ===== */
+  main { width: 100%; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+
+  section { padding: 80px 0; border-top: 1px solid var(--line); }
+  section.dark {
+    background: var(--bg-black);
+    color: var(--fg-on-black);
+    border-top: none;
+    border-bottom: none;
+  }
+  section.dark .muted { color: var(--muted-on-black); }
+  section.first { border-top: none; padding-top: 32px; }
+
+  /* ===== Top bar ===== */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--line);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 30;
+  }
+  .topbar .brand { color: var(--fg); font-weight: 700; letter-spacing: 0.04em; }
+  .topbar .brand sup { font-size: 0.55em; vertical-align: super; }
+  .topbar .links { display: flex; gap: 22px; }
+  .topbar .links a { color: var(--muted); text-decoration: none; transition: color .2s; }
+  .topbar .links a:hover, .topbar .links a.active { color: var(--accent); }
+  .topbar .live {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--accent);
+  }
+  .topbar .live::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1.6s var(--ease) infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(43,117,81,0.55); opacity: 1; }
+    50% { box-shadow: 0 0 0 8px rgba(43,117,81,0); opacity: .6; }
+  }
+
+  /* ===== Type ===== */
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 22px;
+  }
+  .eyebrow .num {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .eyebrow::after {
+    content: ""; flex: 1; height: 1px; background: var(--line);
+  }
+  section.dark .eyebrow::after { background: var(--line-on-black); }
+
+  h1.display {
+    font-size: clamp(56px, 11vw, 168px);
+    line-height: 0.86;
+    letter-spacing: -0.04em;
+    margin: 0;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  h2.display {
+    font-size: clamp(40px, 7vw, 96px);
+    line-height: 0.94;
+    letter-spacing: -0.03em;
+    margin: 0 0 18px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  h2.regular {
+    font-size: clamp(28px, 3.6vw, 48px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+    font-weight: 700;
+  }
+  h3 { font-size: 16px; margin: 0 0 6px; font-weight: 700; letter-spacing: -0.01em; text-transform: uppercase; letter-spacing: 0.02em; }
+  p { font-size: 15px; line-height: 1.55; color: var(--muted); margin: 0; }
+  .lead { font-size: clamp(17px, 1.5vw, 21px); color: var(--fg); max-width: 820px; line-height: 1.4; margin: 0; }
+  section.dark .lead { color: var(--fg-on-black); }
+  sup.r { font-size: 0.45em; vertical-align: super; opacity: 0.85; }
+  .accent { color: var(--accent); }
+  .muted { color: var(--muted); }
+
+  /* ===== HERO ===== */
+  .hero { padding: 64px 0 48px; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 48px;
+    align-items: end;
+  }
+  .hero-meta { display: flex; gap: 22px; flex-wrap: wrap; align-items: center;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted);
+    margin-bottom: 24px;
+  }
+  .hero-meta .dot { color: var(--accent); }
+  .hero-bottom {
+    margin-top: 56px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: stretch;
+  }
+  .hero-claim {
+    background: var(--bg-black);
+    color: #fff;
+    border-radius: 4px;
+    padding: 36px 36px 32px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .hero-claim .top {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--muted-on-black);
+    margin-bottom: 28px;
+  }
+  .hero-claim .big {
+    font-size: clamp(26px, 3.2vw, 42px);
+    line-height: 1.05;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    text-transform: uppercase;
+  }
+  .hero-claim .big span { color: var(--accent); }
+
+  .hero-burn {
+    background: var(--accent);
+    color: #fff;
+    border-radius: 4px;
+    padding: 36px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; overflow: hidden;
+  }
+  .hero-burn .label {
+    font-family: ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    margin-bottom: 18px; opacity: 0.85;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hero-burn .big-num {
+    font-family: ui-monospace, monospace;
+    font-size: clamp(56px, 9vw, 124px);
+    line-height: 0.92;
+    letter-spacing: -0.04em;
+    font-weight: 700;
+  }
+  .hero-burn .sub {
+    margin-top: 18px; font-size: 13px; opacity: 0.92; line-height: 1.45;
+    border-top: 1px solid rgba(255,255,255,0.25);
+    padding-top: 14px;
+    font-family: ui-monospace, monospace;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .hero-burn .sub b { font-weight: 700; }
+
+  /* ===== Most-wanted style stat grid ===== */
+  .mw-eyebrow {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 28px;
+  }
+  .mw-eyebrow h2 { margin: 0; }
+  .mw-eyebrow .right {
+    font-family: ui-monospace, monospace;
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.18em;
+  }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .mw-card {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 24px 22px 22px;
+    background: var(--bg);
+    transition: border-color .35s var(--ease), background .35s var(--ease);
+    position: relative;
+  }
+  .mw-card:hover { border-color: var(--accent); }
+  .mw-card .tag {
+    font-family: ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+    display: flex; justify-content: space-between;
+  }
+  .mw-card .tag .n { color: var(--accent); font-weight: 700; }
+  .mw-card .num {
+    font-family: ui-monospace, monospace;
+    font-size: clamp(34px, 4.4vw, 58px);
+    line-height: 0.95;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: 10px;
+  }
+  .mw-card .lab {
+    font-size: 13px; color: var(--muted); line-height: 1.45;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+    text-transform: uppercase;
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.06em;
+  }
+
+  /* ===== Pipeline (dark) ===== */
+  .pipe-grid {
+    margin-top: 44px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--line-on-black);
+    border-bottom: 1px solid var(--line-on-black);
+  }
+  .pipe-step {
+    padding: 36px 28px;
+    border-right: 1px solid var(--line-on-black);
+    position: relative;
+  }
+  .pipe-step:last-child { border-right: none; }
+  .pipe-step .num {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    margin-bottom: 28px;
+    font-weight: 700;
+  }
+  .pipe-step h3 {
+    font-size: clamp(20px, 2vw, 28px);
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    margin-bottom: 16px;
+    line-height: 1.1;
+  }
+  .pipe-step p {
+    color: var(--muted-on-black);
+    font-size: 14px;
+    line-height: 1.55;
+    margin-bottom: 18px;
+  }
+  .pipe-step .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-family: ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--fg-on-black);
+    border: 1px solid var(--line-on-black);
+    border-radius: 999px;
+    padding: 4px 10px;
+    text-transform: lowercase;
+    letter-spacing: 0;
+  }
+  .chip.green { color: var(--accent); border-color: var(--accent); }
+
+  /* ===== Scoring donuts ===== */
+  .donuts {
+    margin-top: 44px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  }
+  .donut-card {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 32px 28px 28px;
+    background: var(--bg);
+    text-align: left;
+    transition: border-color .35s var(--ease);
+    display: flex; flex-direction: column; align-items: flex-start; gap: 22px;
+  }
+  .donut-card:hover { border-color: var(--accent); }
+  .donut {
+    width: 130px; height: 130px;
+    position: relative;
+  }
+  .donut svg { transform: rotate(-90deg); }
+  .donut .ring-bg { stroke: var(--line); }
+  .donut .ring-fg {
+    stroke: var(--accent);
+    stroke-dasharray: 339.292;
+    stroke-dashoffset: 339.292;
+    transition: stroke-dashoffset 1.6s var(--ease);
+    stroke-linecap: square;
+  }
+  .donut .label-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: ui-monospace, monospace;
+  }
+  .donut .label-center .v {
+    font-size: 36px; color: var(--fg); font-weight: 700; letter-spacing: -0.02em;
+  }
+  .donut .label-center .max {
+    color: var(--muted); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  .donut-card .info { width: 100%; border-top: 1px solid var(--line); padding-top: 14px; }
+  .donut-card h3 { color: var(--accent); font-size: 16px; margin-bottom: 6px; }
+  .donut-card p { font-size: 13px; line-height: 1.45; }
+
+  .formula {
+    margin-top: 26px;
+    font-family: ui-monospace, monospace;
+    font-size: 14px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 16px 20px;
+    color: var(--fg);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .formula .accent { color: var(--accent); font-weight: 700; }
+
+  /* ===== Tiers (dark size-selector style) ===== */
+  .tier-row {
+    margin-top: 44px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border: 1px solid var(--line-on-black);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .tier-zone {
+    padding: 32px 26px 28px;
+    border-right: 1px solid var(--line-on-black);
+    position: relative;
+    transition: background .25s var(--ease);
+  }
+  .tier-zone:last-child { border-right: none; }
+  .tier-zone:hover { background: var(--bg-black-2); }
+  .tier-zone .topbar-color {
+    height: 3px;
+    background: currentColor;
+    margin-bottom: 22px;
+    width: 36px;
+  }
+  .tier-zone .tag {
+    font-family: ui-monospace, monospace;
+    font-size: clamp(28px, 2.4vw, 38px);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+  .tier-zone.p0 { color: var(--p0); }
+  .tier-zone.p1 { color: var(--p1); }
+  .tier-zone.p2 { color: var(--p2); }
+  .tier-zone.p3 { color: var(--p3); }
+  .tier-zone .scoreline {
+    color: var(--muted-on-black);
+    font-family: ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 0.16em;
+    margin: 10px 0 16px;
+    text-transform: uppercase;
+  }
+  .tier-zone h3 {
+    color: #fff;
+    font-size: 18px;
+    margin-bottom: 6px;
+  }
+  .tier-zone p { color: var(--muted-on-black); font-size: 13px; line-height: 1.5; }
+
+  /* ===== Caso featured ===== */
+  .case {
+    margin-top: 44px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 36px 36px;
+    background: var(--bg);
+  }
+  .case .head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    flex-wrap: wrap; gap: 20px;
+    padding-bottom: 26px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 26px;
+  }
+  .case .head .left { display: flex; gap: 18px; align-items: flex-start; }
+  .alert-badge {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    width: 56px; height: 56px;
+    background: var(--p0);
+    color: #fff;
+    border-radius: 4px;
+    flex-shrink: 0;
+    animation: alertPulse 2s var(--ease) infinite;
+  }
+  @keyframes alertPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(193,18,31,0.4); }
+    50% { box-shadow: 0 0 0 12px rgba(193,18,31,0); }
+  }
+  .case .title {
+    font-size: clamp(22px, 2.6vw, 32px);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+    text-transform: uppercase;
+    color: var(--fg);
+    margin-bottom: 8px;
+  }
+  .case .meta {
+    display: flex; gap: 18px; flex-wrap: wrap;
+    font-family: ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 0.14em; color: var(--muted);
+    text-transform: uppercase;
+  }
+  .case .meta b { color: var(--p0); font-weight: 700; }
+  .case .score-big {
+    text-align: right;
+    line-height: 1;
+  }
+  .case .score-big .v {
+    font-family: ui-monospace, monospace;
+    font-size: clamp(48px, 5vw, 76px);
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.03em;
+    display: block;
+  }
+  .case .score-big .vmax {
+    font-family: ui-monospace, monospace;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .case .body {
+    display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px;
+  }
+  .scores .row { margin-bottom: 18px; }
+  .scores .row:last-child { margin-bottom: 0; }
+  .scores .row .top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: ui-monospace, monospace;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.14em;
+    margin-bottom: 8px;
+  }
+  .scores .row .top .k { color: var(--muted); }
+  .scores .row .top .v { color: var(--fg); font-weight: 700; }
+  .progress { height: 6px; background: var(--bg-soft); border-radius: 0; overflow: hidden; border: 1px solid var(--line); }
+  .progress > span { display: block; height: 100%; background: var(--accent); width: 0; transition: width 1.4s var(--ease); }
+  .progress.danger > span { background: var(--p0); }
+
+  .case .data {
+    border: 1px solid var(--line);
+    background: var(--bg-soft);
+    border-radius: 4px;
+    padding: 22px 24px;
+  }
+  .case .data .row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+    font-family: ui-monospace, monospace;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .case .data .row:last-child { border-bottom: none; }
+  .case .data .k { color: var(--muted); }
+  .case .data .v { color: var(--fg); font-weight: 700; }
+  .case .data .v.warn { color: var(--p0); }
+
+  /* ===== Findings — most-wanted again ===== */
+  .findings { margin-top: 44px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .finding {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 26px 24px 22px;
+    background: var(--bg);
+    transition: border-color .35s var(--ease);
+  }
+  .finding:hover { border-color: var(--accent); }
+  .finding .tag {
+    font-family: ui-monospace, monospace;
+    font-size: 10.5px; letter-spacing: 0.18em;
+    color: var(--muted); text-transform: uppercase;
+    margin-bottom: 18px;
+    display: flex; justify-content: space-between;
+  }
+  .finding .tag .n { color: var(--accent); font-weight: 700; }
+  .finding .big {
+    font-family: ui-monospace, monospace;
+    font-size: clamp(30px, 3.8vw, 48px);
+    line-height: 0.95;
+    color: var(--fg);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    margin-bottom: 14px;
+  }
+  .finding .ttl {
+    font-size: 13px; font-weight: 700; color: var(--fg);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .finding .desc {
+    font-size: 13px; color: var(--muted); line-height: 1.5;
+    border-top: 1px solid var(--line); padding-top: 12px;
+  }
+
+  /* ===== Demo timeline (dark) ===== */
+  .demo-list { margin-top: 44px; }
+  .demo-row {
+    display: grid;
+    grid-template-columns: 100px 220px 1fr;
+    gap: 32px;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--line-on-black);
+    align-items: baseline;
+    transition: padding-left .25s var(--ease);
+  }
+  .demo-row:hover { padding-left: 12px; }
+  .demo-row:last-child { border-bottom: none; }
+  .demo-row .num {
+    font-family: ui-monospace, monospace;
+    font-size: 14px; color: var(--accent);
+    letter-spacing: 0.18em; font-weight: 700;
+  }
+  .demo-row .time {
+    font-family: ui-monospace, monospace;
+    font-size: 13px; color: var(--muted-on-black);
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .demo-row .body h3 {
+    font-size: clamp(18px, 2vw, 26px);
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .demo-row .body p { color: var(--muted-on-black); font-size: 14px; }
+
+  /* ===== Stack ===== */
+  .stack-grid {
+    margin-top: 44px;
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 0;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .tech {
+    padding: 24px 16px;
+    text-align: center;
+    border-right: 1px solid var(--line);
+    transition: background .25s var(--ease);
+  }
+  .tech:last-child { border-right: none; }
+  .tech:hover { background: var(--bg-soft); }
+  .tech .name {
+    font-size: 14px; color: var(--fg); font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .tech .desc {
+    font-size: 11px; color: var(--muted);
+    font-family: ui-monospace, monospace; letter-spacing: 0.04em;
+  }
+
+  /* ===== Closing (dark) ===== */
+  .closing { padding: 120px 0 100px; text-align: left; }
+  .closing .quote {
+    font-size: clamp(40px, 7vw, 104px);
+    line-height: 0.94;
+    letter-spacing: -0.03em;
+    color: #fff;
+    font-weight: 700;
+    margin: 0;
+    text-transform: uppercase;
+    max-width: 1080px;
+  }
+  .closing .quote span { color: var(--accent); }
+  .closing .next-row {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    margin-top: 56px;
+  }
+  .next-pill {
+    border: 1px solid var(--line-on-black);
+    padding: 12px 18px;
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px; color: #fff;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: border-color .25s var(--ease), color .25s var(--ease);
+  }
+  .next-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .closing .signoff {
+    margin-top: 80px;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--muted-on-black);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    border-top: 1px solid var(--line-on-black);
+    padding-top: 24px;
+    display: flex; justify-content: space-between;
+  }
+  .closing .signoff .right { color: var(--accent); }
+
+  /* ===== Toolbar progress ===== */
+  .progress-bar {
+    position: fixed; top: 0; left: 0; height: 2px; background: var(--accent);
+    width: 0; z-index: 60; transition: width .15s linear;
+  }
+  .toolbar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 18px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+    font-family: ui-monospace, monospace; font-size: 11px;
+    color: var(--muted); z-index: 50;
+    text-transform: uppercase; letter-spacing: 0.14em;
+  }
+  .toolbar .brand b { color: var(--fg); }
+  .toolbar .nav { display: flex; align-items: center; gap: 12px; }
+  .toolbar button {
+    background: transparent; border: 1px solid var(--line);
+    color: var(--muted); padding: 6px 10px; border-radius: 4px;
+    font-family: inherit; font-size: 11px; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    transition: all .2s var(--ease);
+  }
+  .toolbar button:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ===== Reveal animations ===== */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+  .stagger > * { opacity: 0; transform: translateY(14px); transition: opacity .6s var(--ease), transform .6s var(--ease); }
+  .stagger.in > * { opacity: 1; transform: translateY(0); }
+  .stagger.in > *:nth-child(1) { transition-delay: .04s; }
+  .stagger.in > *:nth-child(2) { transition-delay: .12s; }
+  .stagger.in > *:nth-child(3) { transition-delay: .20s; }
+  .stagger.in > *:nth-child(4) { transition-delay: .28s; }
+  .stagger.in > *:nth-child(5) { transition-delay: .36s; }
+  .stagger.in > *:nth-child(6) { transition-delay: .44s; }
+  .stagger.in > *:nth-child(7) { transition-delay: .52s; }
+  section[id] { scroll-margin-top: 80px; }
+
+  @media (max-width: 980px) {
+    .topbar .links { display: none; }
+    .hero-bottom { grid-template-columns: 1fr; }
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .pipe-grid { grid-template-columns: 1fr; }
+    .pipe-step { border-right: none; border-bottom: 1px solid var(--line-on-black); }
+    .pipe-step:last-child { border-bottom: none; }
+    .donuts { grid-template-columns: 1fr; }
+    .tier-row { grid-template-columns: repeat(2, 1fr); }
+    .tier-zone { border-right: none; border-bottom: 1px solid var(--line-on-black); }
+    .case .body { grid-template-columns: 1fr; }
+    .findings { grid-template-columns: repeat(2, 1fr); }
+    .demo-row { grid-template-columns: 1fr; gap: 6px; }
+    .stack-grid { grid-template-columns: repeat(2, 1fr); }
+    .tech { border-right: none; border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- Top brand bar -->
+<div class="topbar">
+  <div class="brand">scuffers<sup>®</sup></div>
+  <div class="links">
+    <a href="#hero" class="active">PITCH</a>
+    <a href="#problema">PROBLEM</a>
+    <a href="#pipeline">SYSTEM</a>
+    <a href="#caso">CASE</a>
+    <a href="#cierre">CLOSE</a>
+  </div>
+  <div class="live">LIVE · LOCALHOST:3005</div>
+</div>
+
+<main>
+
+  <!-- HERO -->
+  <section class="first hero" id="hero">
+    <div class="wrap">
+      <div class="hero-meta reveal">
+        <span>FW26 PITCH</span>
+        <span class="dot">·</span>
+        <span>UDIA × ESIC</span>
+        <span class="dot">·</span>
+        <span>ABRIL 2026</span>
+        <span class="dot">·</span>
+        <span>AS ALWAYS, WITH LOVE</span>
+      </div>
+      <h1 class="display reveal">AI Ops<br/>Control&nbsp;Tower.</h1>
+      <div class="hero-bottom">
+        <div class="hero-claim reveal">
+          <div class="top">— Sistema de priorización</div>
+          <div class="big">Top 10 acciones para ops durante drops de alta demanda. Determinístico primero. <span>Claude solo enriquece.</span></div>
+        </div>
+        <div class="hero-burn reveal">
+          <div class="label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            EN RIESGO AHORA MISMO
+          </div>
+          <div class="big-num">€<span data-count="9900" data-sep="1">0</span></div>
+          <div class="sub">3 campañas TikTok / IG → SKUs sin reposición · detectado en <b>0.3s</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEMA -->
+  <section id="problema">
+    <div class="wrap">
+      <div class="mw-eyebrow reveal">
+        <h2 class="display">All-time<br/>most urgent.</h2>
+        <div class="right">01 — PROBLEMA</div>
+      </div>
+      <div class="grid-4 stagger">
+        <div class="mw-card">
+          <div class="tag"><span>SKU</span><span class="n">/01</span></div>
+          <div class="num"><span data-count="180">0</span>+</div>
+          <div class="lab">Pedidos en horas</div>
+        </div>
+        <div class="mw-card">
+          <div class="tag"><span>SKU</span><span class="n">/02</span></div>
+          <div class="num"><span data-count="10">0</span></div>
+          <div class="lab">SKUs en stock crítico</div>
+        </div>
+        <div class="mw-card">
+          <div class="tag"><span>SKU</span><span class="n">/03</span></div>
+          <div class="num"><span data-count="18">0</span></div>
+          <div class="lab">Tickets · 8 urgent</div>
+        </div>
+        <div class="mw-card">
+          <div class="tag"><span>SKU</span><span class="n">/04</span></div>
+          <div class="num"><span data-count="32">0</span>%</div>
+          <div class="lab">Reviews 1-2★ · Trustpilot</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIPELINE (DARK) -->
+  <section class="dark" id="pipeline">
+    <div class="wrap">
+      <div class="eyebrow reveal"><span class="num">02</span> — PIPELINE</div>
+      <h2 class="display reveal">From 6 csvs<br/>to top 10.</h2>
+      <p class="lead reveal" style="margin-top: 18px;">5 scorers determinísticos + cross-feature joins. Claude Sonnet 4.6 enriquece reasoning final.</p>
+      <div class="pipe-grid stagger">
+        <div class="pipe-step">
+          <div class="num">01 / LOADER</div>
+          <h3>6 CSVs noise-tolerant</h3>
+          <p>Maneja status no estándar (payment_review, packed), missing fields, formatos inconsistentes.</p>
+          <div class="chips">
+            <span class="chip">orders</span>
+            <span class="chip">customers</span>
+            <span class="chip">inventory</span>
+            <span class="chip">tickets</span>
+            <span class="chip">campaigns</span>
+            <span class="chip">order_items</span>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="num">02 / SCORERS</div>
+          <h3>5 scorers · cross joins</h3>
+          <p>Cruza inventory × campaigns × tickets × customers. Cada acción cita números del data_snapshot.</p>
+          <div class="chips">
+            <span class="chip green">stock_risk</span>
+            <span class="chip green">spend_risk</span>
+            <span class="chip green">vip_escalation</span>
+            <span class="chip green">payment_review</span>
+            <span class="chip green">limit_per_user</span>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="num">03 / ENRICHMENT</div>
+          <h3>Claude Sonnet 4.6</h3>
+          <p>El ranking ya está fijado. Claude solo reescribe razones con tono Scuffers. No decide ranking.</p>
+          <div class="chips">
+            <span class="chip">tono scuffers</span>
+            <span class="chip">español natural</span>
+            <span class="chip">no decide ranking</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCORING -->
+  <section id="scoring">
+    <div class="wrap">
+      <div class="mw-eyebrow reveal">
+        <h2 class="display">3D scoring.<br/>Each axis,<br/>auditable.</h2>
+        <div class="right">03 — SCORING</div>
+      </div>
+      <div class="donuts stagger">
+        <div class="donut-card">
+          <div class="donut">
+            <svg width="130" height="130" viewBox="0 0 130 130">
+              <circle class="ring-bg" cx="65" cy="65" r="54" fill="none" stroke-width="6"/>
+              <circle class="ring-fg" cx="65" cy="65" r="54" fill="none" stroke-width="6" data-percent="40"/>
+            </svg>
+            <div class="label-center">
+              <div class="v"><span data-count="40">0</span>%</div>
+              <div class="max">peso</div>
+            </div>
+          </div>
+          <div class="info">
+            <h3>Urgencia</h3>
+            <p>Tiempo restante antes de que escale públicamente.</p>
+          </div>
+        </div>
+        <div class="donut-card">
+          <div class="donut">
+            <svg width="130" height="130" viewBox="0 0 130 130">
+              <circle class="ring-bg" cx="65" cy="65" r="54" fill="none" stroke-width="6"/>
+              <circle class="ring-fg" cx="65" cy="65" r="54" fill="none" stroke-width="6" data-percent="35"/>
+            </svg>
+            <div class="label-center">
+              <div class="v"><span data-count="35">0</span>%</div>
+              <div class="max">peso</div>
+            </div>
+          </div>
+          <div class="info">
+            <h3>Impacto</h3>
+            <p>€ + LTV cliente + reputación en juego.</p>
+          </div>
+        </div>
+        <div class="donut-card">
+          <div class="donut">
+            <svg width="130" height="130" viewBox="0 0 130 130">
+              <circle class="ring-bg" cx="65" cy="65" r="54" fill="none" stroke-width="6"/>
+              <circle class="ring-fg" cx="65" cy="65" r="54" fill="none" stroke-width="6" data-percent="25"/>
+            </svg>
+            <div class="label-center">
+              <div class="v"><span data-count="25">0</span>%</div>
+              <div class="max">peso</div>
+            </div>
+          </div>
+          <div class="info">
+            <h3>Evidencia</h3>
+            <p>Señales convergentes en el data_snapshot.</p>
+          </div>
+        </div>
+      </div>
+      <div class="formula reveal">
+        SCORE = URGENCIA <span class="accent">× 0.40</span> + IMPACTO <span class="accent">× 0.35</span> + EVIDENCIA <span class="accent">× 0.25</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIERS (DARK) -->
+  <section class="dark" id="tiers">
+    <div class="wrap">
+      <div class="eyebrow reveal"><span class="num">04</span> — TIERS</div>
+      <h2 class="display reveal">Pick a size.<br/>Pick urgency.</h2>
+      <div class="tier-row stagger">
+        <div class="tier-zone p0">
+          <div class="topbar-color"></div>
+          <div class="tag">P0</div>
+          <div class="scoreline">SCORE ≥ 85</div>
+          <h3>Inmediato</h3>
+          <p>€ quemándose en tiempo real.</p>
+        </div>
+        <div class="tier-zone p1">
+          <div class="topbar-color"></div>
+          <div class="tag">P1</div>
+          <div class="scoreline">SCORE ≥ 70</div>
+          <h3>Esta hora</h3>
+          <p>Riesgo alto, ventana corta.</p>
+        </div>
+        <div class="tier-zone p2">
+          <div class="topbar-color"></div>
+          <div class="tag">P2</div>
+          <div class="scoreline">SCORE ≥ 55</div>
+          <h3>Este turno</h3>
+          <p>Atender antes de cerrar el día.</p>
+        </div>
+        <div class="tier-zone p3">
+          <div class="topbar-color"></div>
+          <div class="tag">P3</div>
+          <div class="scoreline">SCORE &lt; 55</div>
+          <h3>Monitoreo</h3>
+          <p>Vigilar, no es bloqueante.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CASO -->
+  <section id="caso">
+    <div class="wrap">
+      <div class="mw-eyebrow reveal">
+        <h2 class="display">Featured<br/>action.</h2>
+        <div class="right">05 — CASE · CMP-778</div>
+      </div>
+      <div class="case reveal">
+        <div class="head">
+          <div class="left">
+            <div class="alert-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>
+            </div>
+            <div>
+              <div class="title">Pausar TikTok CMP-778 → HOODIE-BLK-M</div>
+              <div class="meta">
+                <span><b>P0</b></span>
+                <span>OWNER · COMMERCIAL</span>
+                <span>AUTOMATION · YES</span>
+              </div>
+            </div>
+          </div>
+          <div class="score-big">
+            <span class="v"><span data-count="92">0</span></span>
+            <div class="vmax">/100 SCORE</div>
+          </div>
+        </div>
+        <div class="body">
+          <div class="scores stagger">
+            <div class="row">
+              <div class="top"><span class="k">Urgencia</span><span class="v"><span data-count="95">0</span> / 100</span></div>
+              <div class="progress danger"><span data-fill="95"></span></div>
+            </div>
+            <div class="row">
+              <div class="top"><span class="k">Impacto</span><span class="v"><span data-count="88">0</span> / 100</span></div>
+              <div class="progress"><span data-fill="88"></span></div>
+            </div>
+            <div class="row">
+              <div class="top"><span class="k">Evidencia</span><span class="v"><span data-count="100">0</span> / 100</span></div>
+              <div class="progress"><span data-fill="100"></span></div>
+            </div>
+          </div>
+          <div class="data">
+            <div class="row"><span class="k">Spend gastado</span><span class="v warn">€4.200</span></div>
+            <div class="row"><span class="k">Stock disponible</span><span class="v warn">2 uds</span></div>
+            <div class="row"><span class="k">Reservadas</span><span class="v">32 uds</span></div>
+            <div class="row"><span class="k">Visitas / hora</span><span class="v">4.573</span></div>
+            <div class="row"><span class="k">Sell-through</span><span class="v">82,5%</span></div>
+            <div class="row"><span class="k">ETA reposición</span><span class="v warn">— sin ETA</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINDINGS -->
+  <section id="resultados">
+    <div class="wrap">
+      <div class="mw-eyebrow reveal">
+        <h2 class="display">Top hallazgos<br/>en 0.3s.</h2>
+        <div class="right">06 — RESULTS</div>
+      </div>
+      <div class="findings stagger">
+        <div class="finding">
+          <div class="tag"><span>HIT</span><span class="n">/01</span></div>
+          <div class="big">€<span data-count="9900" data-sep="1">0</span></div>
+          <div class="ttl">Spend en riesgo</div>
+          <div class="desc">3 campañas TikTok / IG apuntando a SKUs sin reposición confirmada.</div>
+        </div>
+        <div class="finding">
+          <div class="tag"><span>HIT</span><span class="n">/02</span></div>
+          <div class="big">€<span data-count="2120" data-sep="1">0</span></div>
+          <div class="ttl">VIP escalado P0</div>
+          <div class="desc">TCK-5505 · ticket urgent + negative · LTV €2.120.</div>
+        </div>
+        <div class="finding">
+          <div class="tag"><span>HIT</span><span class="n">/03</span></div>
+          <div class="big"><span data-count="10">0</span></div>
+          <div class="ttl">SKUs críticos</div>
+          <div class="desc">Identificados antes del oversell. 7 más en watch list.</div>
+        </div>
+        <div class="finding">
+          <div class="tag"><span>HIT</span><span class="n">/04</span></div>
+          <div class="big"><span data-count="0.3" data-decimals="1">0</span>s</div>
+          <div class="ttl">Latencia determinística</div>
+          <div class="desc">LLM enrichment 5–10s en hits, 30–60s en cache miss.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEMO (DARK) -->
+  <section class="dark" id="demo">
+    <div class="wrap">
+      <div class="eyebrow reveal"><span class="num">07</span> — DEMO · 90 SEGUNDOS</div>
+      <h2 class="display reveal">What you'll see<br/>on screen.</h2>
+      <div class="demo-list stagger">
+        <div class="demo-row">
+          <div class="num">/ 01</div>
+          <div class="time">0–15s</div>
+          <div class="body">
+            <h3>Hero · €10.700 EN RIESGO</h3>
+            <p>Cruza inventory × campaigns en tiempo real.</p>
+          </div>
+        </div>
+        <div class="demo-row">
+          <div class="num">/ 02</div>
+          <div class="time">15–30s</div>
+          <div class="body">
+            <h3>Click TOP 1 · CMP-778</h3>
+            <p>Score 92. Tres señales convergen.</p>
+          </div>
+        </div>
+        <div class="demo-row">
+          <div class="num">/ 03</div>
+          <div class="time">30–50s</div>
+          <div class="body">
+            <h3>Tabs Productos · Tickets</h3>
+            <p>HOODIE-BLK-M en barra roja. TCK-5505 VIP escalado P0.</p>
+          </div>
+        </div>
+        <div class="demo-row">
+          <div class="num">/ 04</div>
+          <div class="time">50–80s</div>
+          <div class="body">
+            <h3>Toggle modo LLM</h3>
+            <p>Mismo ranking. Claude solo escribe.</p>
+          </div>
+        </div>
+        <div class="demo-row">
+          <div class="num">/ 05</div>
+          <div class="time">80–90s</div>
+          <div class="body">
+            <h3>Cierre</h3>
+            <p>10 céntimos por análisis con LLM. Cero coste en determinístico.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STACK -->
+  <section id="stack">
+    <div class="wrap">
+      <div class="mw-eyebrow reveal">
+        <h2 class="display">Stack.<br/>Mínimo viable.</h2>
+        <div class="right">08 — STACK</div>
+      </div>
+      <div class="stack-grid stagger">
+        <div class="tech">
+          <div class="name">Next.js 16</div>
+          <div class="desc">app router</div>
+        </div>
+        <div class="tech">
+          <div class="name">Claude Sonnet</div>
+          <div class="desc">4.6 vía CLI</div>
+        </div>
+        <div class="tech">
+          <div class="name">TypeScript</div>
+          <div class="desc">strict</div>
+        </div>
+        <div class="tech">
+          <div class="name">Tailwind</div>
+          <div class="desc">utility-first</div>
+        </div>
+        <div class="tech">
+          <div class="name">lucide-react</div>
+          <div class="desc">iconos</div>
+        </div>
+        <div class="tech">
+          <div class="name">~$0.10</div>
+          <div class="desc">por análisis</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CIERRE (DARK) -->
+  <section class="dark closing" id="cierre">
+    <div class="wrap">
+      <div class="eyebrow reveal"><span class="num">09</span> — CLOSE</div>
+      <h2 class="quote reveal">You're here<br/>because you<br/>want someone<br/>who <span>delivers.</span><br/>I deliver.</h2>
+      <div class="next-row stagger">
+        <div class="next-pill">→ TRACKING PROACTIVO FEDEX</div>
+        <div class="next-pill">→ CALCULADOR DUTY UK</div>
+        <div class="next-pill">→ DASHBOARD POP-UPS</div>
+      </div>
+      <div class="signoff reveal">
+        <div>SCUFFERS<sup>®</sup> · AS ALWAYS, WITH LOVE</div>
+        <div class="right">UDIA × ESIC × SCUFFERS · APR 2026</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="toolbar">
+  <div class="brand">SCUFFERS<sup>®</sup> · <b>AI OPS CONTROL TOWER</b></div>
+  <div class="nav">
+    <button id="btnPrev">↑ PREV</button>
+    <span id="counter">1 / 10</span>
+    <button id="btnNext">NEXT ↓</button>
+  </div>
+</div>
+
+<script>
+  const sections = Array.from(document.querySelectorAll('main > section'));
+  const counter = document.getElementById('counter');
+  const bar = document.getElementById('progressBar');
+  let current = 0;
+
+  function update() {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = max > 0 ? Math.min(100, (window.scrollY / max) * 100) : 0;
+    bar.style.width = pct + '%';
+    counter.textContent = (current + 1) + ' / ' + sections.length;
+  }
+  function goTo(i) {
+    current = Math.max(0, Math.min(sections.length - 1, i));
+    sections[current].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  document.getElementById('btnPrev').addEventListener('click', () => goTo(current - 1));
+  document.getElementById('btnNext').addEventListener('click', () => goTo(current + 1));
+  document.addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); goTo(current + 1); }
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); goTo(current - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    else if (e.key === 'End') { e.preventDefault(); goTo(sections.length - 1); }
+  });
+
+  const sectionIO = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.4) current = sections.indexOf(entry.target);
+    });
+    update();
+  }, { threshold: [0.4, 0.6, 0.8] });
+  sections.forEach(s => sectionIO.observe(s));
+
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+
+  function fireFx(root) {
+    root.querySelectorAll('[data-count]').forEach(el => animateCount(el));
+    root.querySelectorAll('[data-fill]').forEach(el => {
+      const v = parseFloat(el.getAttribute('data-fill')) || 0;
+      requestAnimationFrame(() => { el.style.width = v + '%'; });
+    });
+    root.querySelectorAll('.ring-fg[data-percent]').forEach(el => animateRing(el));
+  }
+  const revealEls = document.querySelectorAll('.reveal, .stagger');
+  const revealIO = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in');
+        fireFx(entry.target);
+        revealIO.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.18 });
+  revealEls.forEach(el => revealIO.observe(el));
+
+  function animateRing(circle) {
+    if (circle.dataset.done === '1') return;
+    circle.dataset.done = '1';
+    const r = parseFloat(circle.getAttribute('r'));
+    const c = 2 * Math.PI * r;
+    const pct = parseFloat(circle.getAttribute('data-percent')) || 0;
+    circle.setAttribute('stroke-dasharray', c);
+    circle.style.strokeDashoffset = c;
+    requestAnimationFrame(() => {
+      circle.style.strokeDashoffset = c - (c * pct / 100);
+    });
+  }
+
+  function animateCount(el) {
+    if (el.dataset.done === '1') return;
+    el.dataset.done = '1';
+    const target = parseFloat(el.getAttribute('data-count')) || 0;
+    const decimals = parseInt(el.getAttribute('data-decimals') || '0', 10);
+    const sep = el.getAttribute('data-sep') === '1';
+    const duration = 1100;
+    const start = performance.now();
+    function fmt(v) {
+      let s = decimals > 0 ? v.toFixed(decimals) : Math.round(v).toString();
+      if (sep) {
+        const [intp, decp] = s.split('.');
+        s = intp.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (decp !== undefined ? ',' + decp : '');
+      } else if (decimals > 0) {
+        s = s.replace('.', ',');
+      }
+      return s;
+    }
+    function frame(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = fmt(target * eased);
+      if (t < 1) requestAnimationFrame(frame);
+      else el.textContent = fmt(target);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  update();
+</script>
+</body>
+</html>

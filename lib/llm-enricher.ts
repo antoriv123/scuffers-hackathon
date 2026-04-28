@@ -40,9 +40,72 @@ REGLAS:
 
 OUTPUT: SOLO JSON ARRAY. Sin markdown. Sin texto adicional. Schema estricto.`;
 
+type EnrichedItem = {
+  rank: number;
+  title: string;
+  reason: string;
+  expected_impact: string;
+  confidence: number;
+};
+
+function tryParseEnrichedArray(raw: string): EnrichedItem[] | null {
+  const cleaned = raw
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+
+  // First attempt: direct parse
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) return parsed as EnrichedItem[];
+  } catch {
+    /* fall through */
+  }
+
+  // Second attempt: extract first balanced JSON array via brace-matching
+  const startIdx = cleaned.indexOf("[");
+  if (startIdx >= 0) {
+    let depth = 0;
+    let inStr = false;
+    let escape = false;
+    for (let i = startIdx; i < cleaned.length; i++) {
+      const ch = cleaned[i];
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') {
+        inStr = !inStr;
+        continue;
+      }
+      if (inStr) continue;
+      if (ch === "[") depth++;
+      else if (ch === "]") {
+        depth--;
+        if (depth === 0) {
+          const slice = cleaned.slice(startIdx, i + 1);
+          try {
+            const parsed = JSON.parse(slice);
+            if (Array.isArray(parsed)) return parsed as EnrichedItem[];
+          } catch {
+            return null;
+          }
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export async function enrichCandidatesWithLLM(
   candidates: ActionCandidate[],
-  options?: { useCli?: boolean; useApi?: boolean; apiKey?: string },
+  options?: { useCli?: boolean; useApi?: boolean; apiKey?: string; timeoutMs?: number },
 ): Promise<PrioritizedAction[]> {
   const useCli = options?.useCli ?? !!findClaudeBinary();
   if (!useCli) {
@@ -72,26 +135,14 @@ Devuelve un array JSON con ${candidates.length} objetos enriquecidos, mismo orde
       prompt: userMessage,
       systemPrompt: ENRICHER_PROMPT,
       model: "sonnet",
-      timeoutMs: 120000,
+      timeoutMs: options?.timeoutMs ?? 120000,
     });
 
-    const cleaned = cli.result
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/```\s*$/i, "")
-      .trim();
+    const enriched = tryParseEnrichedArray(cli.result);
 
-    const enriched = JSON.parse(cleaned) as Array<{
-      rank: number;
-      title: string;
-      reason: string;
-      expected_impact: string;
-      confidence: number;
-    }>;
-
-    if (!Array.isArray(enriched) || enriched.length !== candidates.length) {
+    if (!enriched || !Array.isArray(enriched) || enriched.length !== candidates.length) {
       console.warn(
-        `LLM returned ${enriched?.length ?? "?"} items, expected ${candidates.length}. Falling back.`,
+        `LLM returned ${enriched?.length ?? "unparseable"} items, expected ${candidates.length}. Falling back to deterministic.`,
       );
       return enrichDeterministic(candidates);
     }
@@ -111,6 +162,7 @@ Devuelve un array JSON con ${candidates.length} objetos enriquecidos, mismo orde
       confidence: c._e.confidence,
       owner: c.owner,
       automation_possible: c.automation_possible,
+      score_dimensions: c.score_dimensions,
       _scores: c._scores,
       _data_snapshot: c._data_snapshot,
     }));
@@ -127,8 +179,13 @@ Devuelve un array JSON con ${candidates.length} objetos enriquecidos, mismo orde
 export function enrichDeterministic(
   candidates: ActionCandidate[],
 ): PrioritizedAction[] {
-  const sorted = [...candidates].sort((a, b) => b.raw_score - a.raw_score);
-  return sorted.map((c, i) => ({
+  const sorted = [...candidates].sort((a, b) => {
+    const ta = a.score_dimensions?.total ?? a.raw_score * 100;
+    const tb = b.score_dimensions?.total ?? b.raw_score * 100;
+    if (tb !== ta) return tb - ta;
+    return b.raw_score - a.raw_score;
+  });
+  const out: PrioritizedAction[] = sorted.map((c, i) => ({
     rank: i + 1,
     action_type: c.action_type,
     target_id: c.target_id,
@@ -136,12 +193,22 @@ export function enrichDeterministic(
     title: c.title_hint,
     reason: c.reason_hint,
     expected_impact: deriveImpact(c.action_type),
-    confidence: clamp(c.raw_score, 0.6, 0.92),
+    confidence: c.score_dimensions
+      ? c.score_dimensions.total / 100
+      : clamp(c.raw_score, 0.6, 0.92),
     owner: c.owner,
     automation_possible: c.automation_possible,
+    score_dimensions: c.score_dimensions,
     _scores: c._scores,
     _data_snapshot: c._data_snapshot,
   }));
+  // Invariant: same length as input (rule from TASK 4)
+  if (out.length !== candidates.length) {
+    throw new Error(
+      `enrichDeterministic length mismatch: ${out.length} vs ${candidates.length}`,
+    );
+  }
+  return out;
 }
 
 function deriveImpact(actionType: string): string {

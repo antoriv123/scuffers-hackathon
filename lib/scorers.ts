@@ -12,6 +12,7 @@ import type {
   InventoryItem,
 } from "./types";
 import { hoursAgo } from "./csv-loader";
+import type { ShippingStatus } from "./shipping-api";
 
 // =============== Inventory risk ===============
 
@@ -270,4 +271,92 @@ export function scoreCampaignOverload(
     score,
     components: { intensity, target_stock_risk, spend_at_risk },
   };
+}
+
+// =============== Shipping API boost ===============
+
+export type ShippingBoost = {
+  boost_urgencia: number;
+  boost_impacto: number;
+  boost_evidencia: number;
+  alert: string | null;
+  signals: string[];
+};
+
+const ZERO_BOOST: ShippingBoost = {
+  boost_urgencia: 0,
+  boost_impacto: 0,
+  boost_evidencia: 0,
+  alert: null,
+  signals: [],
+};
+
+/**
+ * Aplica boosts/penalizaciones a las dimensiones a partir del shipping status real.
+ * Si shipping es undefined (no se pudo fetchear), no boostea nada.
+ */
+export function scoreShipping(
+  shipping: ShippingStatus | undefined,
+  actionType?: string,
+): ShippingBoost {
+  if (!shipping) return ZERO_BOOST;
+
+  let boost_urgencia = 0;
+  let boost_impacto = 0;
+  let boost_evidencia = 0;
+  let alert: string | null = null;
+  const signals: string[] = [];
+
+  const status = shipping.shipping_status;
+
+  if (status === "lost") {
+    boost_urgencia += 25;
+    boost_impacto += 20;
+    alert = "Pedido perdido por carrier";
+    signals.push("shipping_lost");
+  } else if (status === "exception") {
+    boost_urgencia += 25;
+    boost_impacto += 15;
+    alert = "Excepción carrier";
+    signals.push("shipping_exception");
+  } else if (status === "returned_to_sender") {
+    boost_urgencia += 15;
+    boost_impacto += 10;
+    alert = "Devuelto al origen";
+    signals.push("shipping_returned");
+  } else if (status === "delayed" || (shipping.delay_risk ?? 0) > 0.7) {
+    boost_urgencia += 20;
+    alert = alert ?? "Retraso confirmado por API";
+    signals.push("shipping_delayed");
+  }
+
+  if ((shipping.delivery_attempts ?? 0) >= 2) {
+    boost_urgencia += 10;
+    signals.push("multiple_delivery_attempts");
+  }
+
+  if (shipping.requires_manual_review === true) {
+    boost_evidencia += 20;
+    signals.push("manual_review_required");
+  }
+
+  if (shipping.delay_reason === "customs_hold") {
+    boost_impacto += 15;
+    alert = alert ?? "Bloqueado en aduana — riesgo legal UK";
+    signals.push("customs_hold");
+  } else if (shipping.delay_reason === "address_validation_error") {
+    boost_evidencia += 15;
+    signals.push("address_invalid");
+  }
+
+  // Negativo: si ya está entregado y la action era "priorizar/expedite", baja prioridad
+  if (
+    status === "delivered" &&
+    (actionType === "prioritize_order" || actionType === "expedite_shipping")
+  ) {
+    boost_urgencia -= 30;
+    signals.push("already_delivered");
+  }
+
+  return { boost_urgencia, boost_impacto, boost_evidencia, alert, signals };
 }
