@@ -106,7 +106,18 @@ export type AnalysisResult = {
   _meta?: {
     total_latency_ms: number;
     llm_used: boolean;
+    fallback_used?: boolean;
+    fallback_reason?: string;
     sources_loaded: string[];
+    shipping_api?: {
+      enabled: boolean;
+      calls_made: number;
+      successful: number;
+      failed: number;
+      cache_hits: number;
+      synthetic_actions_added?: number;
+      rankings_changed?: number;
+    };
     enriched_orders_sample?: EnrichedOrderSample[];
     enriched_tickets_sample?: EnrichedTicketSample[];
     hero_metrics?: HeroMetrics;
