@@ -1,325 +1,369 @@
 "use client";
-import { useState } from "react";
-import { demoInputs, type DemoInput } from "@/lib/demo-inputs";
+import { useEffect, useState } from "react";
 
-type ApiResponse = {
-  category: string;
-  language_detected: string;
-  escalate_human: boolean;
-  escalate_reason: string | null;
-  reply: string;
-  internal_notes: string;
-  suggested_compensation: {
-    refund: boolean;
-    discount_next_order_pct: number;
-    free_shipping_next: boolean;
-  } | null;
-  order_found: Record<string, unknown> | null;
-  rag?: {
-    pre_classification: string;
-    kb_chunks_loaded: { id: string; title: string }[];
-    similar_reviews: {
-      date: string;
-      rating: number;
-      language: string;
-      pattern: string;
-      excerpt: string;
-    }[];
+type Action = {
+  rank: number;
+  action_type: string;
+  target_id: string;
+  target_type: string;
+  title: string;
+  reason: string;
+  expected_impact: string;
+  confidence: number;
+  owner: string;
+  automation_possible: boolean;
+  _scores?: {
+    base_score: number;
+    components: Record<string, number>;
   };
+  _data_snapshot?: Record<string, unknown>;
+};
+
+type AnalysisResult = {
+  generated_at: string;
+  data_summary: {
+    orders: number;
+    customers: number;
+    products: number;
+    inventory_items: number;
+    tickets: number;
+    campaigns: number;
+    issues_detected: number;
+  };
+  actions: Action[];
+  data_quality_warnings: string[];
   _meta?: {
-    model: string;
-    cache_tokens: number;
-    cache_creation_tokens?: number;
-    input_tokens: number;
-    output_tokens: number;
-    cost_usd?: number;
-    cli_duration_ms?: number;
-    total_latency_ms?: number;
-    mode?: "demo" | "live" | "cli";
+    total_latency_ms: number;
+    llm_used: boolean;
+    sources_loaded: string[];
   };
 };
 
-export default function Home() {
-  const [email, setEmail] = useState(demoInputs[0].email);
-  const [output, setOutput] = useState<ApiResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [latencyMs, setLatencyMs] = useState<number | null>(null);
+const OWNER_LABELS: Record<string, { label: string; color: string }> = {
+  operations: { label: "Operations", color: "bg-blue-100 text-blue-800 border-blue-300" },
+  customer_service: { label: "Customer Service", color: "bg-pink-100 text-pink-800 border-pink-300" },
+  commercial: { label: "Commercial", color: "bg-amber-100 text-amber-800 border-amber-300" },
+  warehouse: { label: "Warehouse", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+};
 
-  async function handleSubmit() {
+const ACTION_LABELS: Record<string, string> = {
+  pause_campaign: "Pausar campaña",
+  escalate_ticket: "Escalar ticket",
+  prioritize_order: "Priorizar pedido",
+  contact_customer: "Contactar cliente",
+  review_manually: "Revisar manualmente",
+  restock_alert: "Alerta reposición",
+  limit_purchase_per_customer: "Limitar por cliente",
+  expedite_shipping: "Acelerar envío",
+  offer_compensation: "Ofrecer compensación",
+  merge_orders: "Combinar pedidos",
+  cancel_order_proactively: "Cancelar proactivo",
+};
+
+export default function Home() {
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filterOwner, setFilterOwner] = useState<string | null>(null);
+  const [skipLlm, setSkipLlm] = useState(false);
+
+  async function runAnalysis() {
     setLoading(true);
-    setOutput(null);
-    setLatencyMs(null);
-    const start = Date.now();
+    setError(null);
     try {
-      const r = await fetch("/api/respond", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
+      const r = await fetch(`/api/analyze?llm=${!skipLlm}&top=10`, { method: "GET" });
       const json = await r.json();
-      setLatencyMs(Date.now() - start);
-      setOutput(json);
+      if (json.error) {
+        setError(json.error);
+      } else {
+        setResult(json);
+      }
     } catch (e) {
-      setOutput({
-        category: "error",
-        language_detected: "?",
-        escalate_human: false,
-        escalate_reason: null,
-        reply: e instanceof Error ? e.message : "Error",
-        internal_notes: "",
-        suggested_compensation: null,
-        order_found: null,
-      });
+      setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
       setLoading(false);
     }
   }
 
-  function loadDemo(d: DemoInput) {
-    setEmail(d.email);
-    setOutput(null);
-  }
+  useEffect(() => {
+    runAnalysis();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const filteredActions = filterOwner
+    ? result?.actions.filter((a) => a.owner === filterOwner)
+    : result?.actions;
 
   return (
-    <main className="max-w-4xl mx-auto p-6 md:p-10">
-      <header className="mb-8">
-        <div className="text-xs uppercase tracking-widest text-neutral-500 mb-2">
-          Scuffers · AI Builder Demo
+    <main className="max-w-6xl mx-auto p-6 md:p-10">
+      <header className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="text-xs uppercase tracking-widest text-neutral-500 mb-2">
+            Scuffers · AI Ops Control Tower
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+            Top acciones del lanzamiento
+          </h1>
+          <p className="text-neutral-600 mt-2 max-w-2xl">
+            Sistema de priorización automática de acciones operativas durante
+            un lanzamiento de alta demanda. Cruza pedidos, clientes, stock,
+            tickets y campañas para detectar dónde actuar primero.
+          </p>
         </div>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-          Customer Trust Engine
-        </h1>
-        <p className="text-neutral-600 mt-2 max-w-xl">
-          Triage automático de help@scuffers.com en 6 idiomas. Detecta caso,
-          consulta pedido, genera respuesta con tono &quot;As Always, With
-          Love&quot; y escala lo crítico.
-        </p>
+        <div className="flex flex-col gap-2 items-end">
+          <button
+            onClick={runAnalysis}
+            disabled={loading}
+            className="bg-black text-white px-5 py-2.5 rounded-md font-medium disabled:opacity-50 text-sm"
+          >
+            {loading ? "Analizando..." : "🔄 Re-analizar"}
+          </button>
+          <label className="flex items-center gap-2 text-xs text-neutral-600">
+            <input
+              type="checkbox"
+              checked={skipLlm}
+              onChange={(e) => setSkipLlm(e.target.checked)}
+            />
+            Modo determinístico (sin LLM, más rápido)
+          </label>
+        </div>
       </header>
 
-      <section className="mb-6">
-        <div className="text-xs uppercase tracking-widest text-neutral-500 mb-2">
-          Casos demo
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-900 rounded-md p-4 mb-6">
+          <strong>Error:</strong> {error}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {demoInputs.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => loadDemo(d)}
-              className="text-sm px-3 py-1.5 border border-neutral-300 rounded-full hover:bg-neutral-100 transition"
-            >
-              <span className="mr-1">{d.language}</span>
-              {d.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="mb-6">
-        <label className="block text-xs uppercase tracking-widest text-neutral-500 mb-2">
-          Email del cliente
-        </label>
-        <textarea
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          rows={8}
-          className="w-full border border-neutral-300 rounded-md p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-black"
-        />
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="mt-3 bg-black text-white px-5 py-2.5 rounded-md font-medium disabled:opacity-50"
-        >
-          {loading ? "Procesando..." : "Generar respuesta"}
-        </button>
-      </section>
-
-      {output && (
-        <section className="space-y-4 border-t border-neutral-200 pt-6">
-          {output._meta?.mode === "demo" && (
-            <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-md p-3 text-sm">
-              <strong>Modo DEMO activo</strong> — respuesta pregenerada (sin
-              llamada a Claude). Para activar Claude live, instala el CLI o pega tu API key.
-            </div>
-          )}
-          {output._meta?.mode === "cli" && (
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-md p-3 text-sm">
-              <strong>🟢 LIVE vía Claude CLI</strong> — respuesta generada en directo
-              por Claude (autenticación local, sin API key). Modelo:{" "}
-              <code>{output._meta.model}</code>
-              {output._meta.cost_usd !== undefined &&
-                ` · Coste: $${output._meta.cost_usd.toFixed(4)}`}
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2 text-xs">
-            {output._meta?.mode === "live" && (
-              <Badge label="🟢 LIVE Claude 4.6 (API)" variant="ok" />
-            )}
-            {output._meta?.mode === "cli" && (
-              <Badge label="🟢 LIVE Claude CLI" variant="ok" />
-            )}
-            {output._meta?.mode === "demo" && (
-              <Badge label="🟡 MOCK demo mode" />
-            )}
-            <Badge label={`Categoría: ${output.category}`} />
-            <Badge label={`Idioma: ${output.language_detected}`} />
-            <Badge
-              label={
-                output.escalate_human ? "🚨 Escalar humano" : "✓ Auto-resuelto"
-              }
-              variant={output.escalate_human ? "alert" : "ok"}
-            />
-            {latencyMs && <Badge label={`${latencyMs}ms`} />}
-            {output._meta && output._meta.mode === "live" && (
-              <Badge
-                label={`Cache: ${output._meta.cache_tokens} tokens reused`}
-              />
-            )}
-          </div>
-
-          {output.escalate_human && output.escalate_reason && (
-            <div className="bg-red-50 border border-red-200 text-red-900 rounded-md p-3 text-sm">
-              <strong>Motivo escalado:</strong> {output.escalate_reason}
-            </div>
-          )}
-
-          {output.order_found && (
-            <details className="bg-neutral-50 border border-neutral-200 rounded-md p-3 text-sm">
-              <summary className="cursor-pointer font-medium">
-                📦 Orden encontrada en Shopify
-              </summary>
-              <pre className="mt-2 text-xs overflow-x-auto">
-                {JSON.stringify(output.order_found, null, 2)}
-              </pre>
-            </details>
-          )}
-
-          {output.rag && (
-            <details
-              open
-              className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm"
-            >
-              <summary className="cursor-pointer font-medium">
-                🔍 RAG retrieval — {output.rag.kb_chunks_loaded.length} KB chunks +{" "}
-                {output.rag.similar_reviews.length} reviews históricas
-              </summary>
-              <div className="mt-3 space-y-3">
-                <div>
-                  <div className="text-xs uppercase tracking-widest text-blue-700 mb-1">
-                    Pre-classification (keywords)
-                  </div>
-                  <code className="text-xs bg-blue-100 px-2 py-1 rounded">
-                    {output.rag.pre_classification}
-                  </code>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-widest text-blue-700 mb-1">
-                    Knowledge base inyectado
-                  </div>
-                  <ul className="text-xs space-y-1">
-                    {output.rag.kb_chunks_loaded.map((c) => (
-                      <li key={c.id} className="font-mono">
-                        · <strong>{c.id}</strong> · {c.title}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {output.rag.similar_reviews.length > 0 && (
-                  <div>
-                    <div className="text-xs uppercase tracking-widest text-blue-700 mb-1">
-                      Top {output.rag.similar_reviews.length} reviews
-                      similares de las 1640
-                    </div>
-                    <ul className="text-xs space-y-2">
-                      {output.rag.similar_reviews.map((r, i) => (
-                        <li
-                          key={i}
-                          className="border-l-2 border-blue-300 pl-2"
-                        >
-                          <div className="font-mono text-blue-700">
-                            {r.date} · {r.rating}★ · {r.language.toUpperCase()}
-                          </div>
-                          <div className="italic text-neutral-700">
-                            &quot;{r.excerpt}...&quot;
-                          </div>
-                          <div className="text-blue-800 font-medium mt-0.5">
-                            🎯 {r.pattern}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </details>
-          )}
-
-          <div>
-            <div className="text-xs uppercase tracking-widest text-neutral-500 mb-2">
-              Respuesta al cliente
-            </div>
-            <div className="bg-neutral-50 border border-neutral-200 rounded-md p-4 whitespace-pre-wrap text-sm leading-relaxed">
-              {output.reply}
-            </div>
-          </div>
-
-          {output.internal_notes && (
-            <div>
-              <div className="text-xs uppercase tracking-widest text-neutral-500 mb-2">
-                Notas internas (equipo soporte)
-              </div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm">
-                {output.internal_notes}
-              </div>
-            </div>
-          )}
-
-          {output.suggested_compensation && (
-            <div>
-              <div className="text-xs uppercase tracking-widest text-neutral-500 mb-2">
-                Compensación sugerida
-              </div>
-              <div className="bg-emerald-50 border border-emerald-200 rounded-md p-3 text-sm flex flex-wrap gap-3">
-                {output.suggested_compensation.refund && (
-                  <span>💰 Refund completo</span>
-                )}
-                {output.suggested_compensation.discount_next_order_pct > 0 && (
-                  <span>
-                    🎟️ {output.suggested_compensation.discount_next_order_pct}%
-                    next order
-                  </span>
-                )}
-                {output.suggested_compensation.free_shipping_next && (
-                  <span>📦 Envío gratis próximo</span>
-                )}
-              </div>
-            </div>
-          )}
-        </section>
       )}
 
-      <footer className="mt-16 pt-6 border-t border-neutral-200 text-xs text-neutral-500">
-        Demo construida para hackathon UDIA × ESIC × Scuffers · 28 abr 2026 ·
-        Stack: Next.js 15 + Claude Sonnet 4.6 + Anthropic prompt caching
-      </footer>
+      {loading && !result && (
+        <div className="text-center py-20 text-neutral-500">
+          Cargando datos y generando análisis...
+          <br />
+          <span className="text-xs">
+            (con LLM tarda ~30-60s por la primera cache; siguientes mucho más
+            rápidas)
+          </span>
+        </div>
+      )}
+
+      {result && (
+        <>
+          <DataSummary result={result} />
+
+          <FilterBar
+            filterOwner={filterOwner}
+            setFilterOwner={setFilterOwner}
+            actions={result.actions}
+          />
+
+          <section className="space-y-3">
+            {filteredActions?.map((action) => (
+              <ActionCard key={`${action.action_type}-${action.target_id}`} action={action} />
+            ))}
+          </section>
+
+          {result.data_quality_warnings.length > 0 && (
+            <details className="mt-10 bg-amber-50 border border-amber-200 rounded-md p-4 text-sm">
+              <summary className="cursor-pointer font-medium">
+                ⚠️ {result.data_quality_warnings.length} avisos de calidad de
+                datos
+              </summary>
+              <ul className="mt-2 space-y-1 text-xs font-mono">
+                {result.data_quality_warnings.slice(0, 20).map((w, i) => (
+                  <li key={i}>· {w}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+
+          {result._meta && (
+            <footer className="mt-10 pt-6 border-t border-neutral-200 text-xs text-neutral-500 flex flex-wrap gap-4">
+              <span>
+                Latencia: {(result._meta.total_latency_ms / 1000).toFixed(1)}s
+              </span>
+              <span>
+                LLM:{" "}
+                {result._meta.llm_used ? "✓ Claude (CLI)" : "✗ determinístico"}
+              </span>
+              <span>Sources: {result._meta.sources_loaded.join(", ")}</span>
+              <span>
+                Generado: {new Date(result.generated_at).toLocaleTimeString()}
+              </span>
+            </footer>
+          )}
+        </>
+      )}
     </main>
   );
 }
 
-function Badge({
+function DataSummary({ result }: { result: AnalysisResult }) {
+  const ds = result.data_summary;
+  return (
+    <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <Stat label="Pedidos analizados" value={ds.orders} />
+      <Stat label="Clientes" value={ds.customers} />
+      <Stat label="SKUs en stock" value={ds.inventory_items} />
+      <Stat label="Tickets abiertos" value={ds.tickets} />
+      <Stat label="Campañas activas" value={ds.campaigns} />
+      <Stat label="Issues detectados" value={ds.issues_detected} />
+      <Stat label="Top acciones" value={result.actions.length} highlight />
+      <Stat
+        label="Avisos calidad datos"
+        value={result.data_quality_warnings.length}
+      />
+    </section>
+  );
+}
+
+function Stat({
   label,
-  variant = "default",
+  value,
+  highlight,
 }: {
   label: string;
-  variant?: "default" | "ok" | "alert";
+  value: number;
+  highlight?: boolean;
 }) {
-  const styles = {
-    default: "bg-neutral-100 text-neutral-700 border-neutral-300",
-    ok: "bg-emerald-100 text-emerald-800 border-emerald-300",
-    alert: "bg-red-100 text-red-800 border-red-300",
-  }[variant];
   return (
-    <span className={`px-2 py-1 border rounded-md font-medium ${styles}`}>
-      {label}
-    </span>
+    <div
+      className={`border rounded-md p-3 ${highlight ? "bg-black text-white border-black" : "bg-white border-neutral-200"}`}
+    >
+      <div className={`text-xs uppercase tracking-widest ${highlight ? "text-neutral-300" : "text-neutral-500"}`}>
+        {label}
+      </div>
+      <div className="text-2xl font-bold mt-1">{value}</div>
+    </div>
+  );
+}
+
+function FilterBar({
+  filterOwner,
+  setFilterOwner,
+  actions,
+}: {
+  filterOwner: string | null;
+  setFilterOwner: (v: string | null) => void;
+  actions: Action[];
+}) {
+  const owners = Array.from(new Set(actions.map((a) => a.owner)));
+  return (
+    <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
+      <span className="text-xs uppercase tracking-widest text-neutral-500 mr-2">
+        Filtrar por owner:
+      </span>
+      <button
+        onClick={() => setFilterOwner(null)}
+        className={`px-3 py-1 rounded-full border ${filterOwner === null ? "bg-black text-white border-black" : "bg-white border-neutral-300 hover:bg-neutral-100"}`}
+      >
+        Todos ({actions.length})
+      </button>
+      {owners.map((o) => {
+        const count = actions.filter((a) => a.owner === o).length;
+        const label = OWNER_LABELS[o]?.label ?? o;
+        return (
+          <button
+            key={o}
+            onClick={() => setFilterOwner(o === filterOwner ? null : o)}
+            className={`px-3 py-1 rounded-full border ${filterOwner === o ? "bg-black text-white border-black" : "bg-white border-neutral-300 hover:bg-neutral-100"}`}
+          >
+            {label} ({count})
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ActionCard({ action }: { action: Action }) {
+  const [expanded, setExpanded] = useState(false);
+  const owner = OWNER_LABELS[action.owner] ?? {
+    label: action.owner,
+    color: "bg-neutral-100 text-neutral-800 border-neutral-300",
+  };
+
+  const confidencePct = Math.round(action.confidence * 100);
+  const confidenceColor =
+    action.confidence >= 0.85
+      ? "text-emerald-700 bg-emerald-50"
+      : action.confidence >= 0.7
+        ? "text-blue-700 bg-blue-50"
+        : "text-amber-700 bg-amber-50";
+
+  return (
+    <article className="border border-neutral-200 rounded-lg bg-white overflow-hidden">
+      <div className="p-4 md:p-5">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-black text-white flex items-center justify-center font-bold">
+            {action.rank}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center flex-wrap gap-2 mb-1.5">
+              <span className={`text-xs px-2 py-0.5 border rounded-full font-medium ${owner.color}`}>
+                {owner.label}
+              </span>
+              <span className="text-xs px-2 py-0.5 border border-neutral-300 rounded-full text-neutral-700">
+                {ACTION_LABELS[action.action_type] ?? action.action_type}
+              </span>
+              <code className="text-xs text-neutral-500">{action.target_id}</code>
+              <span className={`text-xs px-2 py-0.5 rounded font-medium ml-auto ${confidenceColor}`}>
+                {confidencePct}% confianza
+              </span>
+              {action.automation_possible && (
+                <span className="text-xs px-2 py-0.5 rounded bg-violet-50 text-violet-700">
+                  ⚡ Automatizable
+                </span>
+              )}
+            </div>
+            <h3 className="font-semibold text-base leading-snug mb-1">
+              {action.title}
+            </h3>
+            <p className="text-sm text-neutral-700 leading-relaxed">
+              {action.reason}
+            </p>
+            <div className="mt-2 text-sm text-neutral-600 italic">
+              💡 {action.expected_impact}
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="mt-3 text-xs text-neutral-500 hover:text-neutral-900"
+        >
+          {expanded ? "▼ Ocultar detalle técnico" : "▶ Ver detalle técnico (scores + datos)"}
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="bg-neutral-50 border-t border-neutral-200 p-4 md:p-5 space-y-3">
+          {action._scores && (
+            <div>
+              <div className="text-xs uppercase tracking-widest text-neutral-500 mb-1">
+                Score breakdown
+              </div>
+              <div className="text-xs font-mono space-y-0.5">
+                <div>base_score: <strong>{action._scores.base_score.toFixed(3)}</strong></div>
+                {Object.entries(action._scores.components).map(([k, v]) => (
+                  <div key={k} className="text-neutral-600">
+                    {k}: {typeof v === "number" ? v.toFixed(3) : String(v)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {action._data_snapshot && (
+            <details>
+              <summary className="text-xs cursor-pointer text-neutral-600">
+                Data snapshot (lo que el scorer vio)
+              </summary>
+              <pre className="mt-2 text-xs bg-white border border-neutral-200 rounded p-2 overflow-x-auto max-h-72">
+                {JSON.stringify(action._data_snapshot, null, 2)}
+              </pre>
+            </details>
+          )}
+        </div>
+      )}
+    </article>
   );
 }
